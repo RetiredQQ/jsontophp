@@ -20,19 +20,19 @@ if ($action == 'convert' && isset($_POST['_csrf_token_'], $_POST['_csrf_timestam
         if (!empty($data)) {
             $jsonArray = json_decode($data, true);
 
-            if ($jsonArray !== null) {
-                $convertedArrayString = '$jsonArray = [' . PHP_EOL;
-
-                foreach ($jsonArray as $item) {
-                    $convertedArrayString .= '   [' . PHP_EOL;
-                    foreach ($item as $key => $value) {
-                        $convertedArrayString .= '      "' . $key . '" => "' . $value . '",' . PHP_EOL;
-                    }
-                    $convertedArrayString .= '   ],' . PHP_EOL;
+            if ($jsonArray !== null || json_last_error() === JSON_ERROR_NONE) {
+                // Check if it's an array or a set of objects
+                if (is_array($jsonArray) && count($jsonArray) > 0 && is_array(current($jsonArray))) {
+                    // JSON is already an array of objects
+                    $formattedArray = formatArray($jsonArray);
+                } else {
+                    // JSON is a set of objects, wrap it in an array
+                    $formattedArray = '[' . formatArray([$jsonArray]) . ']';
                 }
 
-                $convertedArrayString .= '];';
+                $convertedArrayString = '$jsonArray = ' . $formattedArray . ';';
             } else {
+                // JSON is invalid
                 $errMsg = 'Invalid JSON string';
             }
         }
@@ -44,6 +44,18 @@ if ($action == 'convert' && isset($_POST['_csrf_token_'], $_POST['_csrf_timestam
     header('Content-Type: application/json');
     echo $response;
     exit;
+}
+
+function formatArray($array)
+{
+    if (count($array) == count($array, COUNT_RECURSIVE)) {
+        return json_encode($array, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    } else {
+        $formattedArray = array_map(function ($subArray) {
+            return json_encode($subArray, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        }, $array);
+        return '[' . implode(",\n", $formattedArray) . ']';
+    }
 }
 
 ?>
@@ -91,9 +103,6 @@ if ($action == 'convert' && isset($_POST['_csrf_token_'], $_POST['_csrf_timestam
             </div>
         </div>
     </div>
-    <footer class="text-center mt-5">
-        <p>&copy; 2024 RetiredQQ. All rights reserved.</p>
-    </footer>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.6.0/js/bootstrap.min.js"></script>
     <script>
